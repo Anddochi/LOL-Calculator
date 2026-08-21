@@ -153,13 +153,101 @@ saveStatus: document.getElementById("saveStatus"),
     return isFinite(v) && v>=0 ? v : 0;
   }
 
+    const STORAGE_PREFIX = "lolcalc:v1:";
+
   function todayStr(){
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth()+1).padStart(2,"0");
-  const dd = String(d.getDate()).padStart(2,"0");
-  return `${yyyy}-${mm}-${dd}`;
-}
+    // yyyy-mm-dd (로컬)
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,"0");
+    const dd = String(d.getDate()).padStart(2,"0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  function storageKey(){
+    const date = els.sessionDate.value || todayStr();
+    return STORAGE_PREFIX + date;
+  }
+
+  function snapshot(){
+    return {
+      version: 1,
+      date: els.sessionDate.value || todayStr(),
+      stake: stakeValue(),
+      players: players.map(p => ({ name: p.name, active: p.active, outcome: p.outcome })),
+      state: {
+        rounds: state.rounds,
+        totals: state.totals,
+        remainder: state.remainder
+      }
+    };
+  }
+
+  function applySnapshot(snap){
+    if(!snap) return;
+
+    // 날짜
+    if(snap.date) els.sessionDate.value = snap.date;
+
+    // 판돈
+    if(typeof snap.stake === "number") els.stake.value = String(snap.stake);
+
+    // 참가자
+    if(Array.isArray(snap.players)){
+      snap.players.forEach((sp, i) => {
+        if(!players[i]) return;
+        if(typeof sp.name === "string") players[i].name = sp.name || `참가자${i+1}`;
+        if(typeof sp.active === "boolean") players[i].active = sp.active;
+        if(typeof sp.outcome === "string") players[i].outcome = sp.outcome;
+      });
+    }
+
+    // 상태
+    if(snap.state){
+      if(Array.isArray(snap.state.rounds)) state.rounds = snap.state.rounds;
+      if(Array.isArray(snap.state.totals)) state.totals = snap.state.totals;
+      if(typeof snap.state.remainder === "number") state.remainder = snap.state.remainder;
+    }
+
+    renderAll(); // 전체 다시 그려도 OK (불러올 때만)
+  }
+
+  function saveToStorage(showToast = true){
+    try{
+      localStorage.setItem(storageKey(), JSON.stringify(snapshot()));
+      if(showToast){
+        els.saveStatus.textContent = "저장됨";
+        setTimeout(() => els.saveStatus.textContent = "", 800);
+      }
+    }catch(e){
+      els.saveStatus.textContent = "저장 실패(브라우저 저장공간)";
+    }
+  }
+
+  function loadFromStorage(){
+    const raw = localStorage.getItem(storageKey());
+    if(!raw){
+      // 해당 날짜에 저장된 게 없으면 “초기 상태”로
+      clearRounds();
+      renderAll();
+      return;
+    }
+    try{
+      applySnapshot(JSON.parse(raw));
+    }catch(e){
+      // 깨진 데이터면 무시
+      clearRounds();
+      renderAll();
+    }
+  }
+
+  function deleteDateStorage(){
+    localStorage.removeItem(storageKey());
+    els.saveStatus.textContent = "해당 날짜 기록 삭제됨";
+    setTimeout(() => els.saveStatus.textContent = "", 1000);
+    clearRounds();
+    renderAll();
+  }
   
   function updateStakeHint(){
     const p = stakeValue();
