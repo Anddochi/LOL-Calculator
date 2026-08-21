@@ -11,7 +11,7 @@
     .card { border: 1px solid #ddd; border-radius: 10px; padding: 12px; }
     .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     label { font-size: 13px; color: #222; }
-    input[type="text"], input[type="number"], select { padding: 8px; border: 1px solid #ccc; border-radius: 8px; }
+    input[type="text"], input[type="number"], select, input[type="date"] { padding: 8px; border: 1px solid #ccc; border-radius: 8px; }
     input[type="number"] { width: 160px; }
     table { width: 100%; border-collapse: collapse; margin-top: 8px; }
     th, td { border-bottom: 1px solid #eee; padding: 8px; font-size: 13px; text-align: left; }
@@ -47,13 +47,13 @@
         <input type="number" id="stake" value="1000" step="100" min="0" />
         <span class="muted small" id="stakeHint"></span>
       </div>
-<div class="row" style="margin-top:10px;">
-  <label>날짜</label>
-  <input type="date" id="sessionDate" />
-  <button class="btn" id="btnSaveNow">이 날짜로 저장</button>
-  <button class="btn" id="btnDeleteDate">이 날짜 기록 삭제</button>
-  <span class="muted small" id="saveStatus"></span>
-</div>
+      <div class="row" style="margin-top:10px;">
+        <label>날짜</label>
+        <input type="date" id="sessionDate" />
+        <button class="btn" id="btnSaveNow">이 날짜로 저장</button>
+        <button class="btn" id="btnDeleteDate">이 날짜 기록 삭제</button>
+        <span class="muted small" id="saveStatus"></span>
+      </div>
       <div style="margin-top:10px;">
         <table>
           <thead>
@@ -136,12 +136,13 @@
     btnAddRound: document.getElementById("btnAddRound"),
     btnClearRounds: document.getElementById("btnClearRounds"),
     btnResetAll: document.getElementById("btnResetAll"),
-    
     sessionDate: document.getElementById("sessionDate"),
-btnSaveNow: document.getElementById("btnSaveNow"),
-btnDeleteDate: document.getElementById("btnDeleteDate"),
-saveStatus: document.getElementById("saveStatus"),
+    btnSaveNow: document.getElementById("btnSaveNow"),
+    btnDeleteDate: document.getElementById("btnDeleteDate"),
+    saveStatus: document.getElementById("saveStatus"),
   };
+
+  const STORAGE_PREFIX = "lolcalc:v1:";
 
   function fmt(n){
     const sign = n>0 ? "+" : "";
@@ -153,10 +154,7 @@ saveStatus: document.getElementById("saveStatus"),
     return isFinite(v) && v>=0 ? v : 0;
   }
 
-    const STORAGE_PREFIX = "lolcalc:v1:";
-
   function todayStr(){
-    // yyyy-mm-dd (로컬)
     const d = new Date();
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth()+1).padStart(2,"0");
@@ -186,13 +184,9 @@ saveStatus: document.getElementById("saveStatus"),
   function applySnapshot(snap){
     if(!snap) return;
 
-    // 날짜
     if(snap.date) els.sessionDate.value = snap.date;
-
-    // 판돈
     if(typeof snap.stake === "number") els.stake.value = String(snap.stake);
 
-    // 참가자
     if(Array.isArray(snap.players)){
       snap.players.forEach((sp, i) => {
         if(!players[i]) return;
@@ -202,14 +196,13 @@ saveStatus: document.getElementById("saveStatus"),
       });
     }
 
-    // 상태
     if(snap.state){
       if(Array.isArray(snap.state.rounds)) state.rounds = snap.state.rounds;
       if(Array.isArray(snap.state.totals)) state.totals = snap.state.totals;
       if(typeof snap.state.remainder === "number") state.remainder = snap.state.remainder;
     }
 
-    renderAll(); // 전체 다시 그려도 OK (불러올 때만)
+    renderAll(true, false); // 불러올 때는 자동 저장 실행 안 함
   }
 
   function saveToStorage(showToast = true){
@@ -227,17 +220,15 @@ saveStatus: document.getElementById("saveStatus"),
   function loadFromStorage(){
     const raw = localStorage.getItem(storageKey());
     if(!raw){
-      // 해당 날짜에 저장된 게 없으면 “초기 상태”로
-      clearRounds();
-      renderAll();
+      clearRounds(false);
+      renderAll(true, false);
       return;
     }
     try{
       applySnapshot(JSON.parse(raw));
     }catch(e){
-      // 깨진 데이터면 무시
-      clearRounds();
-      renderAll();
+      clearRounds(false);
+      renderAll(true, false);
     }
   }
 
@@ -245,8 +236,7 @@ saveStatus: document.getElementById("saveStatus"),
     localStorage.removeItem(storageKey());
     els.saveStatus.textContent = "해당 날짜 기록 삭제됨";
     setTimeout(() => els.saveStatus.textContent = "", 1000);
-    clearRounds();
-    renderAll();
+    clearRounds(true);
   }
   
   function updateStakeHint(){
@@ -269,10 +259,11 @@ saveStatus: document.getElementById("saveStatus"),
       nameInput.type = "text";
       nameInput.value = pl.name;
       nameInput.addEventListener("change", () => {
-  pl.name = nameInput.value.trim() || `참가자${idx+1}`;
-  renderSummary();
-  renderRounds();
-});
+        pl.name = nameInput.value.trim() || `참가자${idx+1}`;
+        renderSummary();
+        renderRounds();
+        saveToStorage(false);
+      });
       tdName.appendChild(nameInput);
 
       const tdActive = document.createElement("td");
@@ -282,7 +273,7 @@ saveStatus: document.getElementById("saveStatus"),
       chk.addEventListener("change", () => {
         pl.active = chk.checked;
         if(!pl.active) pl.outcome = "neutral";
-        renderAll();
+        renderAll(true);
       });
       tdActive.appendChild(chk);
 
@@ -321,7 +312,6 @@ saveStatus: document.getElementById("saveStatus"),
     if(wins.length < 1 || loses.length < 1)
       return {ok:false, msg:"승자와 패자를 최소 1명씩 지정해줘. (무효는 선택)"};
 
-    // 너의 예시 패턴을 기본 가이드로 안내(강제하지는 않음)
     let hint = "";
     if(active.length === 3){
       hint = "3인 추천 패턴: 승1/무효1/패1";
@@ -347,7 +337,6 @@ saveStatus: document.getElementById("saveStatus"),
     const moved = L * p;
     const rawPerWin = moved / W;
 
-    // 100원 단위 내림
     const perWin = Math.floor(rawPerWin / 100) * 100;
     const paidOut = perWin * W;
     const rem = moved - paidOut;
@@ -365,21 +354,19 @@ saveStatus: document.getElementById("saveStatus"),
 
     state.rounds.push(round);
 
-    // totals apply
     v.wins.forEach(pl => { state.totals[pl.id].win += 1; state.totals[pl.id].net += perWin; });
     v.loses.forEach(pl => { state.totals[pl.id].lose += 1; state.totals[pl.id].net -= p; });
     v.neutrals.forEach(pl => { state.totals[pl.id].neutral += 1; });
 
     state.remainder += rem;
 
-    renderAll();
+    renderAll(true);
   }
 
   function deleteRound(i){
     const r = state.rounds[i];
     if(!r) return;
 
-    // rollback totals
     r.wins.forEach(id => { state.totals[id].win -= 1; state.totals[id].net -= r.perWin; });
     r.loses.forEach(id => { state.totals[id].lose -= 1; state.totals[id].net += r.stake; });
     r.neutrals.forEach(id => { state.totals[id].neutral -= 1; });
@@ -387,25 +374,25 @@ saveStatus: document.getElementById("saveStatus"),
     state.remainder -= r.remainder;
 
     state.rounds.splice(i, 1);
-    renderAll();
+    renderAll(true);
   }
 
-  function clearRounds(){
+  function clearRounds(autoSave = true){
     state.rounds = [];
     state.totals = Array.from({length: MAX}, () => ({win:0, neutral:0, lose:0, net:0}));
     state.remainder = 0;
-    renderAll();
+    renderAll(true, autoSave);
   }
 
   function resetAll(){
-    clearRounds();
+    clearRounds(false);
     players.forEach((p,i) => {
       p.name = `참가자${i+1}`;
       p.active = true;
       p.outcome = "neutral";
     });
     els.stake.value = "1000";
-    renderAll();
+    renderAll(true, true);
   }
 
   function renderSummary(){
@@ -465,38 +452,39 @@ saveStatus: document.getElementById("saveStatus"),
     });
   }
 
-  function renderAll(updatePlayers = true){
+  function renderAll(updatePlayers = true, autoSave = true){
     updateStakeHint();
     if(updatePlayers) renderPlayers();
     renderSummary();
     renderRounds();
+    if(autoSave) saveToStorage(false);
   }
 
-  // events
-    // 날짜 기본값(오늘)
+  // --- 이벤트 리스너 등록 ---
+
+  // 날짜 기본값(오늘) 세팅
   els.sessionDate.value = todayStr();
 
-  // 날짜 바꾸면 해당 날짜 기록 불러오기
+  // 날짜 선택이 변경되면 해당 날짜 데이터를 로드
   els.sessionDate.addEventListener("change", () => {
     loadFromStorage();
   });
 
-  // 수동 저장 버튼
+  // 버튼 이벤트
   els.btnSaveNow.addEventListener("click", () => saveToStorage(true));
-
-  // 해당 날짜 기록 삭제
   els.btnDeleteDate.addEventListener("click", () => {
     if(confirm("이 날짜의 기록을 삭제할까요?")) deleteDateStorage();
   });
-  els.stake.addEventListener("input", () => { updateStakeHint(); });
-  els.btnAddRound.addEventListener("click", addRound);saveToStorage(false);
-  els.btnClearRounds.addEventListener("click", clearRounds);saveToStorage(false);
-  els.btnResetAll.addEventListener("click", resetAll);saveToStorage(false);
-els.sessionDate.addEventListener("change", () => {
-  // 다음 단계에서 loadFromStorage() 연결할 예정
-});
-  renderAll();
-  saveToStorage(false);
+  els.stake.addEventListener("input", () => { 
+    updateStakeHint();
+    saveToStorage(false);
+  });
+  els.btnAddRound.addEventListener("click", addRound);
+  els.btnClearRounds.addEventListener("click", () => clearRounds(true));
+  els.btnResetAll.addEventListener("click", resetAll);
+
+  // 페이지 진입/새로고침 시 저장된 데이터를 불러오기
+  loadFromStorage();
 })();
 </script>
 </body>
