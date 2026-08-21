@@ -161,10 +161,11 @@
       const nameInput = document.createElement("input");
       nameInput.type = "text";
       nameInput.value = pl.name;
-      nameInput.addEventListener("input", () => {
-        pl.name = nameInput.value.trim() || `참가자${idx+1}`;
-        renderAll();
-      });
+      nameInput.addEventListener("change", () => {
+  pl.name = nameInput.value.trim() || `참가자${idx+1}`;
+  renderSummary();
+  renderRounds();
+});
       tdName.appendChild(nameInput);
 
       const tdActive = document.createElement("td");
