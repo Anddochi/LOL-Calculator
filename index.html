@@ -473,15 +473,30 @@ saveStatus: document.getElementById("saveStatus"),
   }
 
   // events
+    // 날짜 기본값(오늘)
   els.sessionDate.value = todayStr();
+
+  // 날짜 바꾸면 해당 날짜 기록 불러오기
+  els.sessionDate.addEventListener("change", () => {
+    loadFromStorage();
+  });
+
+  // 수동 저장 버튼
+  els.btnSaveNow.addEventListener("click", () => saveToStorage(true));
+
+  // 해당 날짜 기록 삭제
+  els.btnDeleteDate.addEventListener("click", () => {
+    if(confirm("이 날짜의 기록을 삭제할까요?")) deleteDateStorage();
+  });
   els.stake.addEventListener("input", () => { updateStakeHint(); });
-  els.btnAddRound.addEventListener("click", addRound);
-  els.btnClearRounds.addEventListener("click", clearRounds);
-  els.btnResetAll.addEventListener("click", resetAll);
+  els.btnAddRound.addEventListener("click", addRound);saveToStorage(false);
+  els.btnClearRounds.addEventListener("click", clearRounds);saveToStorage(false);
+  els.btnResetAll.addEventListener("click", resetAll);saveToStorage(false);
 els.sessionDate.addEventListener("change", () => {
   // 다음 단계에서 loadFromStorage() 연결할 예정
 });
   renderAll();
+  saveToStorage(false);
 })();
 </script>
 </body>
