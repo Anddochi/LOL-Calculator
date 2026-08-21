@@ -38,7 +38,7 @@
           <div class="muted">판돈은 100원 단위 권장. (예: 1500, 2300, 10000)</div>
         </div>
         <div class="row">
-          <button class="btn" id="btnResetAll">전체 초기화</button>
+          <button class="btn" id="btnResetAll">전체 초기화 (모든 날짜)</button>
         </div>
       </div>
 
@@ -96,7 +96,6 @@
           <strong>라운드 기록</strong>
           <div class="muted">원하면 개별 라운드를 삭제할 수 있어.</div>
         </div>
-        <button class="btn" id="btnClearRounds">라운드 전체 삭제</button>
       </div>
       <table>
         <thead>
@@ -108,11 +107,10 @@
     </div>
   </div>
 
-  <!-- 👇 아래 <script> 태그부터 맨 끝 </script>까지가 자바스크립트 영역입니다! -->
 <script>
 (() => {
   const MAX = 5;
-  const ADMIN_PASSWORD = "9999"; // 🔑 초기화/삭제용 비밀번호 설정
+  const ADMIN_PASSWORD = "9999"; // 🔑 초기화/삭제용 비밀번호
 
   const players = Array.from({length: MAX}, (_, i) => ({
     id: i,
@@ -137,7 +135,6 @@
     remainder: document.getElementById("remainder"),
     roundRuleHint: document.getElementById("roundRuleHint"),
     btnAddRound: document.getElementById("btnAddRound"),
-    btnClearRounds: document.getElementById("btnClearRounds"),
     btnResetAll: document.getElementById("btnResetAll"),
     sessionDate: document.getElementById("sessionDate"),
     btnSaveNow: document.getElementById("btnSaveNow"),
@@ -387,7 +384,19 @@
     renderAll(true, autoSave);
   }
 
-  function resetAll(){
+  // 🧹 모든 날짜 데이터 삭제 기능
+  function resetAllData(){
+    // STORAGE_PREFIX("lolcalc:v1:")로 시작하는 모든 저장 데이터 제거
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(STORAGE_PREFIX)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+
+    // UI 및 변수 초기화
     clearRounds(false);
     players.forEach((p,i) => {
       p.name = `참가자${i+1}`;
@@ -395,7 +404,7 @@
       p.outcome = "neutral";
     });
     els.stake.value = "1000";
-    renderAll(true, true);
+    renderAll(true, false);
   }
 
   function renderSummary(){
@@ -467,12 +476,10 @@
 
   els.sessionDate.value = todayStr();
 
-  // 날짜 변경 이벤트
   els.sessionDate.addEventListener("change", () => {
     loadFromStorage();
   });
 
-  // 버튼 이벤트
   els.btnSaveNow.addEventListener("click", () => saveToStorage(true));
 
   // 🔒 이 날짜 기록 삭제 (비밀번호 입력)
@@ -493,28 +500,20 @@
   });
   
   els.btnAddRound.addEventListener("click", addRound);
-  
-  // 라운드 전체 삭제 (단순 확인 팝업)
-  els.btnClearRounds.addEventListener("click", () => {
-    if (confirm("현재 작성된 모든 라운드 기록을 삭제할까요?")) {
-      clearRounds(true);
-    }
-  });
 
-  // 🔒 전체 초기화 (비밀번호 입력)
+  // 🔒 전체 초기화 (모든 날짜 삭제 + 비밀번호 입력)
   els.btnResetAll.addEventListener("click", () => {
-    const inputPw = prompt("⚠️ 정말 전체 초기화하시겠습니까?\n진행하시려면 비밀번호를 입력하세요.");
+    const inputPw = prompt("⚠️ 저장된 모든 날짜의 기록을 삭제하고 전체 초기화합니다.\n진행하시려면 비밀번호를 입력하세요.");
     if (inputPw === null) return;
 
     if (inputPw === ADMIN_PASSWORD) {
-      resetAll();
-      alert("전체 초기화되었습니다.");
+      resetAllData();
+      alert("모든 날짜의 기록이 완전 초기화되었습니다.");
     } else {
       alert("❌ 비밀번호가 올바르지 않습니다.");
     }
   });
 
-  // 저장된 데이터 불러오기
   loadFromStorage();
 })();
 </script>
