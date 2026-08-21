@@ -47,7 +47,13 @@
         <input type="number" id="stake" value="1000" step="100" min="0" />
         <span class="muted small" id="stakeHint"></span>
       </div>
-
+<div class="row" style="margin-top:10px;">
+  <label>날짜</label>
+  <input type="date" id="sessionDate" />
+  <button class="btn" id="btnSaveNow">이 날짜로 저장</button>
+  <button class="btn" id="btnDeleteDate">이 날짜 기록 삭제</button>
+  <span class="muted small" id="saveStatus"></span>
+</div>
       <div style="margin-top:10px;">
         <table>
           <thead>
