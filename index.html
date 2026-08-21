@@ -153,6 +153,14 @@ saveStatus: document.getElementById("saveStatus"),
     return isFinite(v) && v>=0 ? v : 0;
   }
 
+  function todayStr(){
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const dd = String(d.getDate()).padStart(2,"0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+  
   function updateStakeHint(){
     const p = stakeValue();
     const ok = (p % 100 === 0);
@@ -377,11 +385,14 @@ saveStatus: document.getElementById("saveStatus"),
   }
 
   // events
+  els.sessionDate.value = todayStr();
   els.stake.addEventListener("input", () => { updateStakeHint(); });
   els.btnAddRound.addEventListener("click", addRound);
   els.btnClearRounds.addEventListener("click", clearRounds);
   els.btnResetAll.addEventListener("click", resetAll);
-
+els.sessionDate.addEventListener("change", () => {
+  // 다음 단계에서 loadFromStorage() 연결할 예정
+});
   renderAll();
 })();
 </script>
