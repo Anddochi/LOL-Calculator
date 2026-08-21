@@ -103,7 +103,7 @@
         </thead>
         <tbody id="roundsTbody"></tbody>
       </table>
-      <div class="muted" style="margin-top:6px;" id="validationMsg"></div>
+      <div class="muted" style="margin-top:6px; color:#d33;" id="validationMsg"></div>
     </div>
   </div>
 
@@ -113,18 +113,16 @@
 
 <script>
 (() => {
-  // 🔴 1. 본인의 Firebase 콘솔 설정 값으로 교체하세요!
   const firebaseConfig = {
-  apiKey: "AIzaSyB549Ea9jlrOyNY0PxdxWjtSPmF4tGmvD4",
-  authDomain: "lol-calculator-31c36.firebaseapp.com",
-  projectId: "lol-calculator-31c36",
-  storageBucket: "lol-calculator-31c36.firebasestorage.app",
-  messagingSenderId: "944523739978",
-  appId: "1:944523739978:web:3044fbd797ff06fcee77b3",
-  measurementId: "G-NBH6VPNJR4"
-};
+    apiKey: "AIzaSyB549Ea9jlrOyNY0PxdxWjtSPmF4tGmvD4",
+    authDomain: "lol-calculator-31c36.firebaseapp.com",
+    projectId: "lol-calculator-31c36",
+    storageBucket: "lol-calculator-31c36.firebasestorage.app",
+    messagingSenderId: "944523739978",
+    appId: "1:944523739978:web:3044fbd797ff06fcee77b3",
+    measurementId: "G-NBH6VPNJR4"
+  };
 
-  // Firebase 초기화
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
@@ -217,7 +215,6 @@
     renderAll(true, false);
   }
 
-  // ☁️ Firebase DB에 데이터 저장
   function saveToStorage(showToast = true){
     const dateKey = els.sessionDate.value || todayStr();
     db.ref('lolcalc/' + dateKey).set(snapshot(), (error) => {
@@ -228,13 +225,12 @@
     });
   }
 
-  // ☁️ Firebase DB에서 실시간 데이터 수신 리스너 등록
   let currentRef = null;
   function loadFromStorage(){
     const dateKey = els.sessionDate.value || todayStr();
     
     if (currentRef) {
-      currentRef.off(); // 이전 날짜 실시간 감지 해제
+      currentRef.off();
     }
 
     currentRef = db.ref('lolcalc/' + dateKey);
@@ -249,7 +245,6 @@
     });
   }
 
-  // ☁️ 특정 날짜 데이터 삭제
   function deleteDateStorage(){
     const dateKey = els.sessionDate.value || todayStr();
     db.ref('lolcalc/' + dateKey).remove();
@@ -258,7 +253,6 @@
     clearRounds(false);
   }
 
-  // ☁️ 전체 날짜 데이터 삭제
   function resetAllData(){
     db.ref('lolcalc').remove();
     clearRounds(false);
@@ -387,7 +381,10 @@
 
     state.remainder += rem;
 
-    renderAll(true);
+    // 라운드 입력 후 참가자 승/무/패 상태를 '무효'로 초기화
+    players.forEach(p => p.outcome = "neutral");
+
+    renderAll(true, true);
   }
 
   function deleteRound(i){
@@ -401,7 +398,7 @@
     state.remainder -= r.remainder;
 
     state.rounds.splice(i, 1);
-    renderAll(true);
+    renderAll(true, true);
   }
 
   function clearRounds(autoSave = true){
